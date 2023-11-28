@@ -5,6 +5,7 @@
  */
 package com.pilog.mdm.DAO;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pilog.mdm.access.DataAccess;
 import com.pilog.mdm.utilities.AuditIdGenerator;
 import com.pilog.mdm.utilities.PilogUtilities;
@@ -9674,6 +9675,7 @@ public class DashBoardsDAO {
 			String Slicecolumn = request.getParameter("SliceColumn");
 			String dragtableName = request.getParameter("dragtableName");
 			String radioButtons = request.getParameter("radioButtons");
+			String columnsNameForComplexQuery = request.getParameter("columnsListForComplexQuery");
 			JSONArray axisColsArr = new JSONArray();
 			JSONArray valuesColsArr = new JSONArray();
 			JSONArray filterColsArr = new JSONArray();
@@ -10273,6 +10275,7 @@ public class DashBoardsDAO {
 			String user = (String) request.getSession(false).getAttribute("ssUsername");
 			String ssOrgName = (String) request.getSession(false).getAttribute("ssOrgName");
 			String stgTable = request.getParameter("tableName");
+			stgTable = stgTable.replaceAll("[^a-zA-Z0-9_]", "_");
 			String fileName = request.getParameter("fileName");
 			String filePath1 = request.getParameter("filePath");
 //			String filePath = "C:/Files/TreeDMImport" + File.separator + userName;
@@ -11132,6 +11135,8 @@ public String transformdata(HttpServletRequest request) {
 		try {
 			String groupscount = request.getParameter("groupscount");
 			String tableName = request.getParameter("tableName");
+			tableName = tableName.replaceAll("[^a-zA-Z0-9_]", "_");
+
 //            String tableName = "TIMESHEET_RECORD_TEMPLATE";
 
 			String pagenum = request.getParameter("pagenum");
@@ -11706,7 +11711,7 @@ public String transformdata(HttpServletRequest request) {
 								for (int j = 0; j < columns.length; j++) {
 									String column = columns[j];
 									String[] filteredColumnnameArr = column.split("\\.");
-									String filteredColumnname = filteredColumnnameArr[1].replaceAll("\\)", "");
+									String filteredColumnname = filteredColumnnameArr[0].replaceAll("\\)", "");
 									if (filteredColumnname != null && !"".equalsIgnoreCase(filteredColumnname)
 											&& !"null".equalsIgnoreCase(filteredColumnname)) {
 										filteredColumnname = filteredColumnname.replaceAll("_", " ");
@@ -12837,6 +12842,14 @@ public String transformdata(HttpServletRequest request) {
 			String script = request.getParameter("script");
 			String connName = request.getParameter("connectionName");
 			String tableNameFromArg = request.getParameter("tableName");
+			//String[] columnsListArray	= 	request.getParameterValues("columnsList");
+			String columnsListStrFromQuery = request.getParameter("columnsList");
+//			ObjectMapper objectMapper = new ObjectMapper();
+//			String[] columnsListArray = objectMapper.readValue(columnsListStrFromQuery, String[].class);
+		JSONArray columnsListArrayFromQuery = new JSONArray();
+			if (columnsListStrFromQuery != null && !"".equalsIgnoreCase(columnsListStrFromQuery)) {
+				columnsListArrayFromQuery = (JSONArray) JSONValue.parse(columnsListStrFromQuery);
+			}
 			if (script != null && !"".equalsIgnoreCase(script) && !"null".equalsIgnoreCase(script) && connName != null
 					&& !"".equalsIgnoreCase(connName) && !"null".equalsIgnoreCase(connName)) {
 				script = script.toUpperCase();
@@ -13038,6 +13051,7 @@ public String transformdata(HttpServletRequest request) {
 								resultObj.put("gridObject", gridObject);
 								resultObj.put("tableName", table);
 								resultObj.put("dataTypeCount", dataTypeCount);
+								resultObj.put("columnsListForComplexQueries",columnsListArrayFromQuery);
 							}
 							
 							resultObj.put("message", "Data Selected Succesfully.");
@@ -13087,13 +13101,22 @@ public String transformdata(HttpServletRequest request) {
 			String columnsListStr = request.getParameter("columnsList");
 			String tableName = request.getParameter("tableName");
 			String joinQueryFlag = request.getParameter("joinQueryFlag");
-			String script = "" ;//request.getParameter("script");
+			String script = request.getParameter("script");
  			String prependFlag = request.getParameter("prependFlag");
 			String dataTypeCountStr = request.getParameter("dataTypeCountObj");
 			String methodName = request.getParameter("methodName");
+			String columnsListForComplexQueries = request.getParameter("columnsListForComplexQueries");
 			JSONArray colArr = new JSONArray();
+			JSONArray colArrForComplexQueries = new JSONArray();
+			String colListStrForComplexQueries="";
 			if (columnsListStr != null && !"".equalsIgnoreCase(columnsListStr)) {
 				colArr = (JSONArray) JSONValue.parse(columnsListStr);
+			}
+			if (columnsListForComplexQueries != null && !"".equalsIgnoreCase(columnsListForComplexQueries)) {
+				colArrForComplexQueries = (JSONArray) JSONValue.parse(columnsListForComplexQueries);
+				colListStrForComplexQueries = JSONArray.toJSONString(colArrForComplexQueries);
+				colListStrForComplexQueries =colListStrForComplexQueries.replaceAll("\"", "#").replaceAll(" ", ":");
+				//colListStrForComplexQueries =colListStrForComplexQueries.replaceAll(" ", "$");
 			}
 			if (colLength != null && !"".equalsIgnoreCase(colLength)) {
 				colSize = Integer.parseInt(colLength);
@@ -13115,9 +13138,14 @@ public String transformdata(HttpServletRequest request) {
 					+ "<div id='visionSuggestionChartTypeId' class='visionSuggestionChartTypeClass row iconsRow'>";
 			List colList = (List) colArr.stream().map(i -> ((String) i).replaceAll(" ", ":"))
 					.collect(Collectors.toList());
+
 			String colListStr = "";
+
 			if (colList != null && !colList.isEmpty()) {
 				colListStr = JSONArray.toJSONString(colList);
+			}
+			if(colListStrForComplexQueries ==null || "".equalsIgnoreCase(colListStrForComplexQueries) ) {
+				colListStrForComplexQueries = colListStr;
 			}
 			if (colSize == 1) {
 				result += "<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
@@ -13174,7 +13202,7 @@ public String transformdata(HttpServletRequest request) {
 							 */
 							
 							+ "<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
-							+ colListStr + "','treemap','" + tableName + "','" + joinQueryFlag + "','" + script
+							+ colListStrForComplexQueries + "','treemap','" + tableName + "','" + joinQueryFlag + "','" + script
 							+ "','" + prependFlag + "')  src='images/Tree_Chart.svg' class='visualDarkMode' title='Tree chart'></div>"
 							
 							+ "<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
@@ -13234,20 +13262,20 @@ public String transformdata(HttpServletRequest request) {
 				}
 			if(varCharCnt >= 1 && numberCnt == 1) {
 			result+= "<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
-						+ colListStr + "','treemap','" + tableName + "','" + joinQueryFlag + "','" + script
+						+ colListStrForComplexQueries + "','treemap','" + tableName + "','" + joinQueryFlag + "','" + script
 						+ "','" + prependFlag + "')  src='images/Tree_Chart.svg' class='visualDarkMode' title='Tree chart'></div>"
 						
 						+"<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
-						+ colListStr + "','sunburst','" + tableName + "','" + joinQueryFlag + "','" + script
+						+ colListStrForComplexQueries + "','sunburst','" + tableName + "','" + joinQueryFlag + "','" + script
 						+ "','" + prependFlag + "')  src='images/Sunburst_Inner_Icon.svg' class='visualDarkMode' title='SunBurst'></div>"
 						
 						+"<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
-						+ colListStr + "','sankey','" + tableName + "','" + joinQueryFlag + "','" + script
+						+ colListStrForComplexQueries + "','sankey','" + tableName + "','" + joinQueryFlag + "','" + script
 						+ "','" + prependFlag + "')  src='images/sankey_chart.png' class='visualDarkMode' title='Sankey'></div>";
 			}
 			if(varCharCnt == 2 && numberCnt == 1) {
 				result+= "<div class=\"col-lg-4 my-2 px-1 col-md-4 visualChartsByQueryClass\"><img onclick= "+methodName+"('"
-						+ colListStr + "','heatMap','" + tableName + "','" + joinQueryFlag + "','" + script
+						+ colListStrForComplexQueries + "','heatMap','" + tableName + "','" + joinQueryFlag + "','" + script
 						+ "','" + prependFlag + "')  src='images/HeatMap_Inner_Icon.svg' class='visualDarkMode' title='Heat Map'></div>";
 						
 			}
@@ -18455,5 +18483,45 @@ public String transformdata(HttpServletRequest request) {
 			}
 			return resultObj;
 		}
+
+	@Transactional
+	public Map<String, String> getDataTypesOFHeader(HttpServletRequest request) {
+		Map<String ,String> resultMap = new HashMap<>();
+		Connection connection = null;
+		try{
+			String tableName = request.getParameter("newTableName");
+			Class.forName(dataBaseDriver);
+			connection = DriverManager.getConnection(dbURL, userName, password);
+			Statement statement = connection.createStatement();
+			ResultSet results = statement.executeQuery("SELECT * FROM " + tableName + "");
+			ResultSetMetaData metadata = results.getMetaData();
+			int columnCount = metadata.getColumnCount();
+			if (columnCount > 0) {
+
+				for (int i = 1; i <= columnCount; i++) {
+					String columnName = metadata.getColumnName(i);
+					String columnType = metadata.getColumnTypeName(i);
+					if("number".equalsIgnoreCase(columnType)  && columnType != null)
+						resultMap.put(columnName, "number");
+					else if("varchar2".equalsIgnoreCase(columnType)  && columnType != null)
+						resultMap.put(columnName, "string");
+					else if("date".equalsIgnoreCase(columnType)  && columnType != null)
+						resultMap.put(columnName, "date");
+					else
+						resultMap.put(columnName,"string");
+
+				}
+
+			}
+
+
+		}catch (Exception e){
+			e.printStackTrace();
+
+		}
+
+
+		return resultMap;
+	}
 
 }

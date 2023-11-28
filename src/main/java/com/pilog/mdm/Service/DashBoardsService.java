@@ -29,7 +29,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
+import java.util.*;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -45,16 +45,10 @@ import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
+
 import com.itextpdf.xmp.impl.Base64;
 import com.pilog.mdm.utilities.PilogUtilities;
 import java.sql.Clob;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1121,6 +1115,7 @@ public class DashBoardsService {
 			JSONArray columnsArray = new JSONArray();    
 
 			List<String> headers = getHeadersOfImportedFile(request, filePath);
+			Map<String,String> headerDataTypes =dashBoardsDAO.getDataTypesOFHeader(request);
 			if (!(headers != null && !headers.isEmpty())) {
 				String fileHeadersStr = request.getParameter("fileHeaders");
 				if (fileHeadersStr != null && !"".equalsIgnoreCase(fileHeadersStr)
@@ -1155,15 +1150,15 @@ public class DashBoardsService {
 								+ "_FREEZE' data-gridid='" + gridId + "' data-type='pinned' " + " data-colname='"
 								+ header.replaceAll("\\s", "_") + "' onchange=\"updateETLPersonalize(id)\"" + "</td>"
 								+ "</tr>";
-						dataFieldsObj.put("name", header.replaceAll("\\s", "_"));
-						dataFieldsObj.put("type", "string");
+						dataFieldsObj.put("name", header.replaceAll("\\s", "_").replaceAll("[^a-zA-Z0-9_]", "_"));
+						dataFieldsObj.put("type", headerDataTypes.get(header.replaceAll("[^a-zA-Z0-9_]", "_")));
 
 						dataFieldsArray.add(dataFieldsObj);
 
 						JSONObject columnsObject = new JSONObject();
 
 						columnsObject.put("text", headerText);
-						columnsObject.put("datafield", header.replaceAll("\\s", "_"));
+						columnsObject.put("datafield", header.replaceAll("\\s", "_").replaceAll("[^a-zA-Z0-9_]", "_"));
 						columnsObject.put("width", 120);
 						columnsArray.add(columnsObject);
 
@@ -1213,6 +1208,8 @@ public class DashBoardsService {
 		}
 		return fileMetaObj;
 	}
+
+
 
 	public List getHeadersOfImportedFile(HttpServletRequest request, String filePath) {
 		List<String> headers = null;
